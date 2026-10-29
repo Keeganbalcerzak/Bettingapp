@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0d10;
+  --color-surface: #14171c;
+  --color-surface-2: #1b1f26;
+  --color-surface-3: #232831;
+  --color-line: #262b33;
+  --color-line-2: #313741;
+  --color-ink: #eef0f3;
+  --color-ink-2: #a7adb7;
+  --color-ink-3: #8b929d;
+  --color-pos: #22c55e;
+  --color-pos-bg: #0f2a1a;
+  --color-neg: #f87171;
+  --color-neg-bg: #2c1416;
+  --color-warn: #fab219;
+  --color-warn-bg: #2b2210;
+  --color-accent: #3b82f6;
+  --color-accent-strong: #2563eb;
+  --color-accent-bg: #13233d;
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-muted-bar: #6b7280;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thin, quiet scrollbars on the dark surfaces. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.4;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
