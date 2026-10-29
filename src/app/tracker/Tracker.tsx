@@ -80,7 +80,8 @@ export function Tracker() {
         for (const l of b.legs) {
           const f = l.espnId ? finals.get(l.espnId) : undefined;
           if (!f || f.homeScore === null || f.awayScore === null || l.result) continue;
-          const r = gradeLeg(l, f.homeScore, f.awayScore);
+          const [home, away] = l.espnFlipped ? [f.awayScore, f.homeScore] : [f.homeScore, f.awayScore];
+          const r = gradeLeg(l, home, away, !!getSport(l.sport)?.hasDraw);
           if (r) {
             results.set(`${l.id}|${b.id}`, r);
             graded++;

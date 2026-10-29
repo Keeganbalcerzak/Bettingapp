@@ -189,10 +189,12 @@ export interface DemoPropSeed {
   values: number[];
   yesNo: boolean;
   count: boolean;
+  /** Spread as a share of the average for continuous stats (see PropMarketDef.cv). */
+  cv: number | null;
 }
 
 /** Main prop line near the middle of the player's distribution, like books post. */
-function propLine(avg: number, count: boolean): { line: number; pOver: (line: number) => number; step: number } {
+function propLine(avg: number, count: boolean, cv: number | null): { line: number; pOver: (line: number) => number; step: number } {
   if (count) {
     const lambda = Math.max(0.2, avg);
     const pOver = (line: number) => 1 - poissonCdf(Math.floor(line), lambda);
@@ -200,7 +202,7 @@ function propLine(avg: number, count: boolean): { line: number; pOver: (line: nu
     while (pOver(k + 0.5) > 0.56 && k < 60) k++;
     return { line: k + 0.5, pOver, step: 1 };
   }
-  const sd = Math.max(1.5, Math.sqrt(Math.max(avg, 1)) * 1.6);
+  const sd = Math.max(1.5, (cv ?? 0.35) * Math.max(avg, 1));
   const pOver = (line: number) => 1 - normCdf((line - avg) / sd);
   const base = Math.round(avg * 2) / 2;
   const step = avg >= 60 ? 5 : avg >= 25 ? 2 : 1;
@@ -228,7 +230,7 @@ export function buildDemoProps(eventId: string, seeds: DemoPropSeed[], dayKey: s
         if (book.key !== "fanduel") list.push({ name: "No", description: seed.player, price: no });
       } else {
         const count = seed.count;
-        const { line, pOver, step: lineStep } = propLine(avg, count);
+        const { line, pOver, step: lineStep } = propLine(avg, count, seed.cv);
         const shifted = rng() < book.lineShift * 0.6 ? Math.max(0.5, line + (rng() < 0.5 ? -1 : 1) * lineStep) : line;
         const [ov, un] = priceTwoWay(clampProb(pOver(shifted), 0.08), book.hold * 1.5, rng, book.noise * 1.3);
         list.push({ name: "Over", description: seed.player, price: ov, point: shifted });

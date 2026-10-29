@@ -4,6 +4,7 @@ import { americanToDecimal } from "../odds/convert";
 import { getSport } from "../sports";
 import { DEFAULT_ANALYSIS } from "../types";
 import { analyzeGameLines } from "./analyze";
+import { flipGame, flipSummary, type EspnGame, type EspnSummary } from "./espn";
 import { matchEvent, nameSimilarity, normalizePlayer } from "./match";
 import type { OddsApiEvent } from "./oddsApi";
 
@@ -157,14 +158,94 @@ describe("matching", () => {
       { id: "a", home: "New York Jets", away: "Las Vegas Raiders", date: "2026-11-01T18:00Z" },
       { id: "b", home: "LA Clippers", away: "Minnesota Timberwolves", homeAliases: ["Clippers"], awayAliases: ["Timberwolves"], date: "2026-10-31T00:00Z" },
     ];
-    expect(matchEvent({ home: "New York Jets", away: "Las Vegas Raiders", date: "2026-11-01T18:00:00Z" }, candidates)?.id).toBe("a");
-    expect(matchEvent({ home: "Los Angeles Clippers", away: "Minnesota Timberwolves", date: "2026-10-31T00:10:00Z" }, candidates)?.id).toBe("b");
+    const jets = matchEvent({ home: "New York Jets", away: "Las Vegas Raiders", date: "2026-11-01T18:00:00Z" }, candidates);
+    expect(jets?.match.id).toBe("a");
+    expect(jets?.flipped).toBe(false);
+    expect(matchEvent({ home: "Los Angeles Clippers", away: "Minnesota Timberwolves", date: "2026-10-31T00:10:00Z" }, candidates)?.match.id).toBe("b");
     expect(matchEvent({ home: "New York Jets", away: "Las Vegas Raiders", date: "2026-11-08T18:00:00Z" }, candidates)).toBeNull();
+  });
+
+  it("reports when the other feed lists home and away the other way round", () => {
+    const candidates = [{ id: "c", home: "Miami Dolphins", away: "Kansas City Chiefs", date: "2026-11-08T14:30Z" }];
+    const m = matchEvent({ home: "Kansas City Chiefs", away: "Miami Dolphins", date: "2026-11-08T14:30:00Z" }, candidates);
+    expect(m?.match.id).toBe("c");
+    expect(m?.flipped).toBe(true);
   });
 
   it("normalizes player names", () => {
     expect(normalizePlayer("James Cook III")).toBe("james cook");
     expect(normalizePlayer("Amon-Ra St. Brown")).toBe("amonra st brown");
     expect(normalizePlayer("Luka Dončić")).toBe("luka doncic");
+  });
+});
+
+describe("flipping ESPN orientation", () => {
+  const team = (id: string, name: string) => ({
+    id,
+    name,
+    shortName: name,
+    abbr: id,
+    location: "",
+    nickname: name,
+    logo: null,
+    score: null,
+    record: null,
+    homeRecord: null,
+    awayRecord: null,
+  });
+  const game: EspnGame = {
+    id: "g",
+    date: "2026-11-08T14:30Z",
+    name: "KC at MIA",
+    state: "pre",
+    statusDetail: "",
+    completed: false,
+    neutralSite: true,
+    home: team("MIA", "Miami Dolphins"),
+    away: team("KC", "Kansas City Chiefs"),
+    venue: { name: null, city: null, state: null, indoor: null },
+    weather: null,
+    broadcast: null,
+    odds: { provider: "DK", spreadHome: 3, total: 47.5, mlHome: 140, mlAway: -165, spreadHomeOdds: -105, spreadAwayOdds: -115, overOdds: -110, underOdds: -110, drawOdds: null },
+    movement: { provider: "DK", spreadOpen: 2.5, spreadNow: 3, totalOpen: 47, totalNow: 47.5, mlHomeOpen: 130, mlHomeNow: 140, mlAwayOpen: -150, mlAwayNow: -165 },
+  };
+
+  it("swaps teams, prices and line movement", () => {
+    const f = flipGame(game);
+    expect(f.home.abbr).toBe("KC");
+    expect(f.away.abbr).toBe("MIA");
+    expect(f.odds?.spreadHome).toBe(-3);
+    expect(f.odds?.mlHome).toBe(-165);
+    expect(f.odds?.spreadHomeOdds).toBe(-115);
+    expect(f.odds?.total).toBe(47.5);
+    expect(f.movement?.spreadNow).toBe(-3);
+    expect(f.movement?.mlHomeNow).toBe(-165);
+    expect(f.movement?.totalNow).toBe(47.5);
+  });
+
+  it("swaps summary ids, scores and the predictor", () => {
+    const summary = {
+      espnId: "g",
+      homeId: "MIA",
+      awayId: "KC",
+      state: "post",
+      completed: true,
+      statusDetail: "Final",
+      homeScore: 20,
+      awayScore: 27,
+      predictor: { home: 0.3, away: 0.7, tie: null },
+      injuries: {},
+      recent: {},
+      standings: {},
+      leaders: {},
+      weather: null,
+      venue: { name: null, city: null, state: null, indoor: null },
+      movement: null,
+    } satisfies EspnSummary;
+    const f = flipSummary(summary);
+    expect(f.homeId).toBe("KC");
+    expect(f.homeScore).toBe(27);
+    expect(f.awayScore).toBe(20);
+    expect(f.predictor?.home).toBe(0.7);
   });
 });

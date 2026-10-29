@@ -11,6 +11,8 @@ export interface TrackedLeg {
   sport: string;
   eventId: string;
   espnId: string | null;
+  /** ESPN lists the teams the other way round; swap its scores before grading. */
+  espnFlipped?: boolean;
   market: string;
   side: string;
   point: number | null;
@@ -58,6 +60,7 @@ export function trackedLeg(leg: AnalyzedLeg): TrackedLeg {
     sport: leg.sport,
     eventId: leg.eventId,
     espnId: leg.espnId ?? null,
+    espnFlipped: !!leg.espnFlipped,
     market: leg.market,
     side: leg.side,
     point: leg.point ?? null,

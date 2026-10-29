@@ -9,12 +9,16 @@ export interface SettleableLeg {
   point?: number | null;
 }
 
-/** Grades a moneyline, spread or total leg. Props return null (graded by hand). */
-export function gradeLeg(leg: SettleableLeg, homeScore: number, awayScore: number): LegResult | null {
+/**
+ * Grades a moneyline, spread or total leg. Props return null (graded by hand).
+ * `hasDraw` marks three-way moneylines (soccer), where a draw loses a bet on
+ * either team instead of pushing it.
+ */
+export function gradeLeg(leg: SettleableLeg, homeScore: number, awayScore: number, hasDraw = false): LegResult | null {
   const margin = homeScore - awayScore;
   if (leg.market === "h2h") {
     if (leg.side === "draw") return margin === 0 ? "won" : "lost";
-    if (margin === 0) return "push";
+    if (margin === 0) return hasDraw ? "lost" : "push";
     const homeWon = margin > 0;
     return (leg.side === "home") === homeWon ? "won" : "lost";
   }

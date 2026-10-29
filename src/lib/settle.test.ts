@@ -6,8 +6,12 @@ describe("gradeLeg", () => {
   it("grades moneylines", () => {
     expect(gradeLeg({ market: "h2h", side: "home" }, 24, 20)).toBe("won");
     expect(gradeLeg({ market: "h2h", side: "away" }, 24, 20)).toBe("lost");
-    expect(gradeLeg({ market: "h2h", side: "draw" }, 1, 1)).toBe("won");
-    expect(gradeLeg({ market: "h2h", side: "home" }, 1, 1)).toBe("push");
+    expect(gradeLeg({ market: "h2h", side: "draw" }, 1, 1, true)).toBe("won");
+    expect(gradeLeg({ market: "h2h", side: "draw" }, 2, 1, true)).toBe("lost");
+    // A soccer draw loses a bet on either team; a tie in a two-way moneyline pushes.
+    expect(gradeLeg({ market: "h2h", side: "home" }, 1, 1, true)).toBe("lost");
+    expect(gradeLeg({ market: "h2h", side: "away" }, 1, 1, true)).toBe("lost");
+    expect(gradeLeg({ market: "h2h", side: "home" }, 20, 20)).toBe("push");
   });
 
   it("grades spreads with pushes", () => {

@@ -108,7 +108,6 @@ export function optimizeParlays(legs: OptimizerLeg[], options: OptimizerOptions)
   const minLegs = Math.max(2, Math.min(opts.minLegs, opts.maxLegs));
   const maxLegs = Math.max(minLegs, opts.maxLegs);
 
-  // A boost changes which legs are worth including, so rank with the boost applied.
   const unique = new Map<string, OptimizerLeg>();
   for (const leg of legs) {
     if (!Number.isFinite(leg.prob) || !Number.isFinite(leg.decimal) || leg.decimal <= 1) continue;
@@ -116,20 +115,33 @@ export function optimizeParlays(legs: OptimizerLeg[], options: OptimizerOptions)
     const existing = unique.get(leg.id);
     if (!existing || existing.ev < leg.ev) unique.set(leg.id, leg);
   }
-  // Keep only the best leg per game so the search space is legs from distinct games.
-  const bestPerGame = new Map<string, OptimizerLeg[]>();
+
+  // A boost pays on the parlay's profit, so it favors longer odds legs that look
+  // worse unboosted. Shortlist from both rankings so neither kind gets cut early.
+  const plainScore = (l: OptimizerLeg) => l.ev;
+  const boostScore = (l: OptimizerLeg) => l.prob * boostedDecimal(l.decimal, opts.boostPct) - 1;
+  const shortlist = (list: OptimizerLeg[], limit: number): OptimizerLeg[] => {
+    const byPlain = [...list].sort((a, b) => plainScore(b) - plainScore(a));
+    if (opts.boostPct <= 0) return byPlain.slice(0, limit);
+    const byBoost = [...list].sort((a, b) => boostScore(b) - boostScore(a));
+    const picked = new Map<string, OptimizerLeg>();
+    for (let i = 0; i < list.length && picked.size < limit; i++) {
+      picked.set(byBoost[i].id, byBoost[i]);
+      if (picked.size < limit) picked.set(byPlain[i].id, byPlain[i]);
+    }
+    return [...picked.values()];
+  };
+
+  // A few legs per game, then the overall shortlist. The search below uses one leg per game.
+  const perGame = new Map<string, OptimizerLeg[]>();
   for (const leg of unique.values()) {
-    const list = bestPerGame.get(leg.eventId) ?? [];
+    const list = perGame.get(leg.eventId) ?? [];
     list.push(leg);
-    bestPerGame.set(leg.eventId, list);
+    perGame.set(leg.eventId, list);
   }
   const pool: OptimizerLeg[] = [];
-  for (const list of bestPerGame.values()) {
-    list.sort((a, b) => b.ev - a.ev);
-    pool.push(...list.slice(0, 3));
-  }
-  pool.sort((a, b) => b.ev - a.ev);
-  const cands = pool.slice(0, opts.candidateLimit);
+  for (const list of perGame.values()) pool.push(...shortlist(list, 3));
+  const cands = shortlist(pool, opts.candidateLimit);
 
   type Combo = { idx: number[]; prob: number; decimal: number; score: number };
   const top: Combo[] = [];

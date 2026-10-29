@@ -13,6 +13,12 @@ export interface PropMarketDef {
   yesNo?: boolean;
   /** Count stats get a Poisson model, the rest a normal model. */
   count?: boolean;
+  /**
+   * Normal-model spread as a share of the line (coefficient of variation).
+   * Game-to-game swings scale with the size of the stat: a 250 yard passer
+   * varies by about 70 yards, a 25 point scorer by about 7 points.
+   */
+  cv?: number;
 }
 
 export interface SportConfig {
@@ -36,10 +42,10 @@ export interface SportConfig {
 }
 
 const NFL_PROPS: PropMarketDef[] = [
-  { key: "player_pass_yds", label: "Pass Yds", stat: "pass_yds", espn: ["passingYards"] },
+  { key: "player_pass_yds", label: "Pass Yds", stat: "pass_yds", espn: ["passingYards"], cv: 0.28 },
   { key: "player_pass_tds", label: "Pass TDs", stat: "pass_tds", espn: ["passingTouchdowns"], count: true },
-  { key: "player_rush_yds", label: "Rush Yds", stat: "rush_yds", espn: ["rushingYards"] },
-  { key: "player_reception_yds", label: "Rec Yds", stat: "rec_yds", espn: ["receivingYards"] },
+  { key: "player_rush_yds", label: "Rush Yds", stat: "rush_yds", espn: ["rushingYards"], cv: 0.5 },
+  { key: "player_reception_yds", label: "Rec Yds", stat: "rec_yds", espn: ["receivingYards"], cv: 0.55 },
   { key: "player_receptions", label: "Receptions", stat: "receptions", espn: ["receptions"], count: true },
   {
     key: "player_anytime_td",
@@ -52,7 +58,7 @@ const NFL_PROPS: PropMarketDef[] = [
 ];
 
 const NBA_PROPS: PropMarketDef[] = [
-  { key: "player_points", label: "Points", stat: "points", espn: ["points"] },
+  { key: "player_points", label: "Points", stat: "points", espn: ["points"], cv: 0.3 },
   { key: "player_rebounds", label: "Rebounds", stat: "rebounds", espn: ["totalRebounds"], count: true },
   { key: "player_assists", label: "Assists", stat: "assists", espn: ["assists"], count: true },
   { key: "player_threes", label: "Threes", stat: "threes", espn: ["threePointFieldGoalsMade"], count: true },
@@ -61,6 +67,7 @@ const NBA_PROPS: PropMarketDef[] = [
     label: "Pts+Reb+Ast",
     stat: "pra",
     espn: ["points", "totalRebounds", "assists"],
+    cv: 0.25,
   },
 ];
 

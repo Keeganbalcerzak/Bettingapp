@@ -279,6 +279,15 @@ describe("optimizer", () => {
     }
   });
 
+  it("keeps longer legs that a profit boost favors", () => {
+    const favorites = Array.from({ length: 22 }, (_, i) => mk(`f${i}`, `fg${i}`, -200, 1.01 / 1.5));
+    const dog = mk("dog", "dg", 200, 1 / 3);
+    const res = optimizeParlays([...favorites, dog], { minLegs: 2, maxLegs: 2, objective: "ev", boostPct: 100 });
+    const best = res.parlays[0];
+    expect(best.legs.map((l) => l.id)).toContain("dog");
+    expect(best.pricing.ev).toBeCloseTo(0.796, 2);
+  });
+
   it("hit objective prefers likelier parlays that are still +EV", () => {
     const res = optimizeParlays(legs, { minLegs: 2, maxLegs: 3, objective: "hit" });
     const best = res.parlays[0];

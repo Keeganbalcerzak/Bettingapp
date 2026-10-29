@@ -41,6 +41,8 @@ export interface AnalyzedLeg {
   id: string;
   eventId: string;
   espnId?: string | null;
+  /** ESPN lists home and away the other way round, so ESPN scores must be swapped to grade. */
+  espnFlipped?: boolean;
   sport: string;
   sportLabel: string;
   home: string;

@@ -49,23 +49,30 @@ function bestSim(name: string, primary: string, aliases: string[] = []): number 
   return Math.max(nameSimilarity(name, primary), ...aliases.map((a) => nameSimilarity(name, a)));
 }
 
+export interface EventMatch<T> {
+  match: T;
+  /** True when the candidate lists the teams the other way round (home is away). */
+  flipped: boolean;
+}
+
 export function matchEvent<T extends MatchCandidate>(
   event: { home: string; away: string; date: string },
   candidates: T[],
   maxHours = 14,
-): T | null {
+): EventMatch<T> | null {
   const t = Date.parse(event.date);
-  let best: { c: T; score: number } | null = null;
+  let best: { c: T; score: number; flipped: boolean } | null = null;
   for (const c of candidates) {
     const hours = Math.abs(Date.parse(c.date) - t) / 3600000;
     if (!Number.isFinite(hours) || hours > maxHours) continue;
     const straight = bestSim(event.home, c.home, c.homeAliases) + bestSim(event.away, c.away, c.awayAliases);
     // Neutral site games sometimes flip home and away between providers.
-    const flipped = bestSim(event.home, c.away, c.awayAliases) + bestSim(event.away, c.home, c.homeAliases);
-    const score = Math.max(straight, flipped * 0.95) - hours * 0.01;
-    if (score >= 1.1 && (!best || score > best.score)) best = { c, score };
+    const flippedScore = bestSim(event.home, c.away, c.awayAliases) + bestSim(event.away, c.home, c.homeAliases);
+    const flipped = flippedScore * 0.95 > straight;
+    const score = Math.max(straight, flippedScore * 0.95) - hours * 0.01;
+    if (score >= 1.1 && (!best || score > best.score)) best = { c, score, flipped };
   }
-  return best?.c ?? null;
+  return best ? { match: best.c, flipped: best.flipped } : null;
 }
 
 /** Player name normalization for joining Odds API prop names to ESPN rosters. */

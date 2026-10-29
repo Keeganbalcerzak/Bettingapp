@@ -16,6 +16,8 @@ export interface GameContext {
   summary: EspnSummary | null;
   standings: Record<string, SummaryTeamStanding> | null;
   weather: KickoffWeather | null;
+  /** ESPN lists this game's teams the other way round; game and summary are already turned around. */
+  espnFlipped?: boolean;
 }
 
 /** Games-played shrinkage: how many games before we trust a team's point differential. */

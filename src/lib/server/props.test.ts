@@ -4,6 +4,8 @@ import type { GameLogEntry } from "./espn";
 import { bookPropFair, buildPropStats, shiftPropProb, statValues } from "./props";
 
 const points = propDef("basketball_nba", "player_points")!;
+const passYds = propDef("americanfootball_nfl", "player_pass_yds")!;
+const recYds = propDef("americanfootball_nfl", "player_reception_yds")!;
 const rebounds = propDef("basketball_nba", "player_rebounds")!;
 const anytimeTd = propDef("americanfootball_nfl", "player_anytime_td")!;
 
@@ -29,6 +31,34 @@ describe("prop pricing", () => {
     // Count stats shift with a Poisson model.
     expect(shiftPropProb(rebounds, 0.5, "over", 8.5, 9.5)).toBeLessThan(0.5);
     expect(shiftPropProb(rebounds, 0.5, "under", 8.5, 9.5)).toBeGreaterThan(0.5);
+  });
+
+  it("moves yardage lines with a realistic spread", () => {
+    // A 10 yard gap on a 260 yard passing line is a small move, not a 70% lock.
+    const pass = bookPropFair(passYds, [
+      { name: "Over", description: "QB", price: -110, point: 260.5 },
+      { name: "Under", description: "QB", price: -110, point: 260.5 },
+    ], "over", 250.5, "power", true);
+    expect(pass!.prob).toBeGreaterThan(0.54);
+    expect(pass!.prob).toBeLessThan(0.58);
+    const rec = bookPropFair(recYds, [
+      { name: "Over", description: "WR", price: -110, point: 64.5 },
+      { name: "Under", description: "WR", price: -110, point: 64.5 },
+    ], "over", 59.5, "power", true);
+    expect(rec!.prob).toBeGreaterThan(0.54);
+    expect(rec!.prob).toBeLessThan(0.6);
+    // 49 yards apart is too far to translate.
+    const far = bookPropFair(passYds, [
+      { name: "Over", description: "QB", price: -110, point: 299.5 },
+      { name: "Under", description: "QB", price: -110, point: 299.5 },
+    ], "over", 250.5, "power", true);
+    expect(far).toBeNull();
+  });
+
+  it("does not overrate a passer a little above his line", () => {
+    const games = [270, 262, 268, 271, 265, 266, 269, 264, 267, 268];
+    const stats = buildPropStats(passYds, games, [], 250.5, "over", 0.55)!;
+    expect(stats.modelProb).toBeLessThan(0.75);
   });
 
   it("refuses lines that are too far apart", () => {

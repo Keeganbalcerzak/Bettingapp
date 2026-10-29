@@ -204,6 +204,7 @@ export function analyzeGameLines({ sport, event, ctx, info, settings, demo }: Ga
         id: `${event.id}|${marketKey}|${side}|${point ?? ""}`,
         eventId: event.id,
         espnId: info?.espnId || null,
+        espnFlipped: !!ctx.espnFlipped,
         sport: sport.key,
         sportLabel: sport.short,
         home: event.home_team,

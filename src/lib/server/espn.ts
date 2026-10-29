@@ -559,3 +559,53 @@ export async function getStandings(sport: SportConfig): Promise<Record<string, S
   });
   return res.value;
 }
+
+// ---------- Orientation ----------
+
+const neg = (x: number | null) => (x === null ? null : -x);
+
+function flipMovement(m: LineMovement | null): LineMovement | null {
+  if (!m) return null;
+  return {
+    ...m,
+    spreadOpen: neg(m.spreadOpen),
+    spreadNow: neg(m.spreadNow),
+    mlHomeOpen: m.mlAwayOpen,
+    mlHomeNow: m.mlAwayNow,
+    mlAwayOpen: m.mlHomeOpen,
+    mlAwayNow: m.mlHomeNow,
+  };
+}
+
+/** Swaps home and away so ESPN's game lines up with an odds feed that lists the teams the other way round. */
+export function flipGame(g: EspnGame): EspnGame {
+  const o = g.odds;
+  return {
+    ...g,
+    home: g.away,
+    away: g.home,
+    odds: o
+      ? {
+          ...o,
+          spreadHome: neg(o.spreadHome),
+          mlHome: o.mlAway,
+          mlAway: o.mlHome,
+          spreadHomeOdds: o.spreadAwayOdds,
+          spreadAwayOdds: o.spreadHomeOdds,
+        }
+      : null,
+    movement: flipMovement(g.movement),
+  };
+}
+
+export function flipSummary(s: EspnSummary): EspnSummary {
+  return {
+    ...s,
+    homeId: s.awayId,
+    awayId: s.homeId,
+    homeScore: s.awayScore,
+    awayScore: s.homeScore,
+    predictor: s.predictor ? { home: s.predictor.away, away: s.predictor.home, tie: s.predictor.tie } : null,
+    movement: flipMovement(s.movement),
+  };
+}

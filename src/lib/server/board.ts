@@ -5,7 +5,7 @@ import type { AnalysisSettings, AnalyzedLeg, BoardResponse, DataMode, GameView, 
 import { analyzeGameLines } from "./analyze";
 import { getConfig } from "./config";
 import { buildDemoEvent } from "./demo";
-import { getStandings, getSummary, getUpcomingGames, type EspnGame, type EspnSummary, type SummaryTeamStanding } from "./espn";
+import { flipGame, flipSummary, getStandings, getSummary, getUpcomingGames, type EspnGame, type EspnSummary, type SummaryTeamStanding } from "./espn";
 import { mapLimitSettled } from "./http";
 import { buildGameInfo, type GameContext } from "./info";
 import { matchEvent } from "./match";
@@ -98,10 +98,10 @@ export async function getSportBoard(
   }));
   const pairs = events.map((e) => {
     const espnId = e.id.startsWith("demo-") ? e.id.slice(5) : null;
-    const game = espnId
-      ? (espnGames.find((g) => g.id === espnId) ?? null)
-      : (matchEvent({ home: e.home_team, away: e.away_team, date: e.commence_time }, candidates)?.game ?? null);
-    return { event: e, game };
+    if (espnId) return { event: e, game: espnGames.find((g) => g.id === espnId) ?? null, flipped: false };
+    const m = matchEvent({ home: e.home_team, away: e.away_team, date: e.commence_time }, candidates);
+    // Everything downstream assumes the odds feed's home team, so turn flipped ESPN games around.
+    return { event: e, game: m ? (m.flipped ? flipGame(m.match.game) : m.match.game) : null, flipped: m?.flipped ?? false };
   });
 
   let standings: Record<string, SummaryTeamStanding> | null = null;
@@ -122,7 +122,7 @@ export async function getSportBoard(
   const fetched = await mapLimitSettled(summaryTargets, 6, (p) => getSummary(sport, p.game!.id));
   summaryTargets.forEach((p, i) => {
     const s = fetched[i];
-    if (s) summaries.set(p.game!.id, s);
+    if (s) summaries.set(p.game!.id, p.flipped ? flipSummary(s) : s);
   });
 
   const weather = new Map<string, KickoffWeather>();
@@ -143,13 +143,14 @@ export async function getSportBoard(
 
   const games: GameView[] = [];
   const legs: AnalyzedLeg[] = [];
-  for (const { event, game } of pairs) {
+  for (const { event, game, flipped } of pairs) {
     const ctx: GameContext = {
       sport,
       game,
       summary: game ? (summaries.get(game.id) ?? null) : null,
       standings,
       weather: game ? (weather.get(game.id) ?? null) : null,
+      espnFlipped: flipped,
     };
     contexts.set(event.id, ctx);
     const info = buildGameInfo(ctx);

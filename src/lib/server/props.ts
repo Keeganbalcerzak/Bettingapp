@@ -36,13 +36,17 @@ function isPositive(side: Side): boolean {
   return side === "over" || side === "yes";
 }
 
+/** Spread of a continuous stat around `level`, proportional to its size. */
+export function propSd(def: PropMarketDef, level: number): number {
+  return Math.max(1, (def.cv ?? 0.35) * Math.max(level, 1));
+}
+
 /** P(stat > line) under a simple distribution, used to move probabilities between prop lines. */
 function overProb(def: PropMarketDef, center: number, line: number): number {
   if (def.count) {
     return 1 - poissonCdf(Math.floor(line), Math.max(0.05, center));
   }
-  const sd = Math.max(1, Math.sqrt(Math.max(center, 1)) * 1.1);
-  return 1 - normCdf((line - center) / sd);
+  return 1 - normCdf((line - center) / propSd(def, center));
 }
 
 /** Finds the Poisson rate or normal mean that reproduces P(over line) = p. */
@@ -65,8 +69,7 @@ export function shiftPropProb(def: PropMarketDef, pSide: number, side: Side, fro
     const center = solveCenter(def, fromLine, clampProb(pOver, 0.01));
     shifted = overProb(def, center, toLine);
   } else {
-    const sd = Math.max(1, Math.sqrt(Math.max(fromLine, 1)) * 1.1);
-    shifted = shiftProb(pOver, fromLine, toLine, sd);
+    shifted = shiftProb(pOver, fromLine, toLine, propSd(def, fromLine));
   }
   return isPositive(side) ? shifted : 1 - shifted;
 }
@@ -134,7 +137,9 @@ export function bookPropFair(
     .sort((a, b) => Math.abs(a.pt - line) - Math.abs(b.pt - line));
   const pick = usable[0];
   if (!pick || !pick.over || !pick.under) return null;
-  if (Math.abs(pick.pt - line) > Math.max(1.5, line * 0.2)) return null;
+  // Only move a line a short way: count stats by a step or two, continuous stats by half a spread.
+  const maxGap = def.count ? Math.max(1.5, line * 0.2) : 0.5 * propSd(def, line);
+  if (Math.abs(pick.pt - line) > maxGap) return null;
   const [pOver] = devig([1 / americanToDecimal(pick.over.price), 1 / americanToDecimal(pick.under.price)], method);
   if (!Number.isFinite(pOver)) return null;
   const pSide = side === "over" ? pOver : 1 - pOver;
@@ -262,7 +267,7 @@ async function demoSeeds(sport: SportConfig, leaders: Record<string, { category:
       seen.add(key);
       const def = sport.props.find((d) => d.key === market)!;
       const values = statValues(def, log);
-      if (values.length >= 3) seeds.push({ player: p.name, market, values, yesNo: !!def.yesNo, count: !!def.count });
+      if (values.length >= 3) seeds.push({ player: p.name, market, values, yesNo: !!def.yesNo, count: !!def.count, cv: def.cv ?? null });
     }
   });
   return seeds;
@@ -405,6 +410,7 @@ export async function analyzeProps(
         id: `${eventId}|${fdMarket.key}|${playerKey}|${side}|${point ?? ""}`,
         eventId,
         espnId: ctx.game?.id ?? null,
+        espnFlipped: !!ctx.espnFlipped,
         sport: sport.key,
         sportLabel: sport.short,
         home: event.home_team,
